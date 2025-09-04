@@ -25,11 +25,6 @@ public class LoanApplicationValidator {
             throw new InvalidLoanException("El monto no puede estar vacío");
         }
 
-        /*EmailValidator.validate(user.getEmail());
-        SalaryValidator.validate(user.getBaseSalary());
-        AddressValidator.validate(user.getAddress());
-        BirthDateValidator.validate(String.valueOf(user.getBirthDate()));*/
-
     }
 
     private static boolean isNullOrEmpty(String value) {
