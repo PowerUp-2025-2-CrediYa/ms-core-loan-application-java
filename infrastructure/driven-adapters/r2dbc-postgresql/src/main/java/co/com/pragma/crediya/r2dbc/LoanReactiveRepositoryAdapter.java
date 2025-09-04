@@ -5,11 +5,14 @@ import co.com.pragma.crediya.model.loanapplication.gateways.LoanApplicationRepos
 import co.com.pragma.crediya.r2dbc.entity.LoanApplicatonEntity;
 import co.com.pragma.crediya.r2dbc.helper.ReactiveAdapterOperations;
 import org.reactivecommons.utils.ObjectMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
+
+import static co.com.pragma.crediya.r2dbc.exception.LoanDBException.valideDBException;
 
 @Repository
 public class LoanReactiveRepositoryAdapter extends ReactiveAdapterOperations<
@@ -31,7 +34,9 @@ public class LoanReactiveRepositoryAdapter extends ReactiveAdapterOperations<
     @Override
     public Mono<LoanApplication> saveLoanApplication(LoanApplication loanApplication) {
 
-        Mono<LoanApplication> flow = super.save(loanApplication);
+        Mono<LoanApplication> flow = super.save(loanApplication)
+                .onErrorMap(DataIntegrityViolationException.class,
+                        ex -> valideDBException(ex, loanApplication));
 
         return transactionalOperator.transactional(flow);
     }

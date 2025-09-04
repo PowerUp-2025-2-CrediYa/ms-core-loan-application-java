@@ -4,6 +4,6 @@ public class LoanTypeNotExistsException extends RuntimeException{
 
     public LoanTypeNotExistsException(String loadType){
 
-        super("No existe el tipo de solicitud: ".concat(loadType));
+        super("No existe el tipo de prestamo: ".concat(loadType));
     }
 }

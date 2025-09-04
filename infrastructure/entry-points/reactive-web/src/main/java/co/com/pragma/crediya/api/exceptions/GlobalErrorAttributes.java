@@ -15,7 +15,6 @@ import java.util.Map;
 @Component
 public class GlobalErrorAttributes extends DefaultErrorAttributes {
 
-    // JSON keys (evita “magic strings”)
     private static final String K_ERROR = "error";
     private static final String K_MESSAGE = "message";
     private static final String K_PATH = "path";
