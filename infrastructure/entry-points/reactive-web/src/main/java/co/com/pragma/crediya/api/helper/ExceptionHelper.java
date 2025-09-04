@@ -8,13 +8,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExceptionHelper {
 
+    private ExceptionHelper(){}
+
     public static HttpStatus resolveStatus(Throwable ex) {
 
         if (ex instanceof org.springframework.web.server.ResponseStatusException rse) {
             return HttpStatus.valueOf(rse.getStatusCode().value());
         }
         if (ex instanceof InvalidAmountRangeException
-                || ex instanceof InvalidLoanException
                 || ex instanceof InvalidLoanTermException
                 || ex instanceof LoanTypeNotExistsException
         ) {
@@ -24,12 +25,8 @@ public class ExceptionHelper {
             return HttpStatus.UNPROCESSABLE_ENTITY;
         }
 
-        if (ex instanceof InvalidLoanException || ex instanceof BadRequestException) {
+        if (JsonErrorMessageFactory.isJsonDecodeError(ex) || ex instanceof InvalidLoanException) {
             return HttpStatus.BAD_REQUEST;
-        }
-
-        if (JsonErrorMessageFactory.isJsonDecodeError(ex)) {
-            return HttpStatus.BAD_REQUEST; // 400
         }
 
         return HttpStatus.INTERNAL_SERVER_ERROR;
