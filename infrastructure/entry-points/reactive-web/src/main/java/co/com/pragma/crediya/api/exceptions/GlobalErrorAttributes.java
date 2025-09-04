@@ -34,7 +34,7 @@ public class GlobalErrorAttributes extends DefaultErrorAttributes {
 
         final String message = resolveClientMessage(ex, status);
 
-        final Map<String, Object> body = new LinkedHashMap<>(6);
+        final Map<String, Object> body = LinkedHashMap.newLinkedHashMap(6);
         body.put(K_ERROR, status.getReasonPhrase());
         body.put(K_MESSAGE, message);
         body.put(K_PATH, request.path());

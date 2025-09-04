@@ -19,5 +19,6 @@ public class LoanApplication {
     private BigDecimal amount;
     private String loanType;
     private Integer loanTerm;
+    private String loanStatus;
     private LocalDate createAt;
 }

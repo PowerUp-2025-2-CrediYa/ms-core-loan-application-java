@@ -32,4 +32,7 @@ public class LoanApplicatonEntity {
     @Column("plazo_prestamo")
     private Integer loanTerm;
 
+    @Column("estado_codigo")
+    private String loanStatus;
+
 }

@@ -1,6 +1,7 @@
 package co.com.pragma.crediya.usecase.loanapplication;
 
 import co.com.pragma.crediya.model.loanapplication.LoanApplication;
+import co.com.pragma.crediya.model.loanapplication.LoanStatusCode;
 import co.com.pragma.crediya.model.loanapplication.gateways.LoanApplicationRepository;
 import co.com.pragma.crediya.model.loanapplication.helper.LoanApplicationValidator;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ public class LoanApplicationUseCase {
     public Mono<LoanApplication> saveUser(LoanApplication loan) {
         return Mono.defer(() -> {
             LoanApplicationValidator.validate(loan);
+            loan.setLoanStatus(LoanStatusCode.PENDING_REVIEW);
             return loanApplicationRepositoryGateway.saveLoanApplication(loan);
         });
     }

@@ -1,6 +1,5 @@
 package co.com.pragma.crediya.api.exceptions;
 
-import co.com.pragma.crediya.api.helper.ExceptionHelper;
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
@@ -17,19 +16,18 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
+import static co.com.pragma.crediya.api.helper.ExceptionHelper.resolveStatus;
+
 @Component
 @Order(-2)
 public class GlobalExceptionHandler extends AbstractErrorWebExceptionHandler {
 
-    private final ExceptionHelper exceptionHelper;
-
     public GlobalExceptionHandler(ErrorAttributes errorAttributes,
                                   WebProperties resources,
                                   ApplicationContext applicationContext,
-                                  ServerCodecConfigurer configurer,
-                                  ExceptionHelper exceptionHelper) {
+                                  ServerCodecConfigurer configurer
+                                 ) {
         super(errorAttributes, resources.getResources(), applicationContext);
-        this.exceptionHelper = exceptionHelper;
         this.setMessageWriters(configurer.getWriters());
         this.setMessageReaders(configurer.getReaders());
     }
@@ -44,7 +42,7 @@ public class GlobalExceptionHandler extends AbstractErrorWebExceptionHandler {
                 request, ErrorAttributeOptions.of(ErrorAttributeOptions.Include.MESSAGE));
 
         Throwable ex = getError(request);
-        HttpStatus status = exceptionHelper.resolveStatus(ex);
+        HttpStatus status = resolveStatus(ex);
 
         return ServerResponse.status(status)
                 .contentType(MediaType.APPLICATION_JSON)

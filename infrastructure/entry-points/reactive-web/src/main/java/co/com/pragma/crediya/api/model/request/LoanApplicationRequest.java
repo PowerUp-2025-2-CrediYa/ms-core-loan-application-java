@@ -22,7 +22,7 @@ public class LoanApplicationRequest {
     @Schema(description = "Tipo de prestamo", example = "HIPOTECARIO")
     private String loanType;
 
-    @Schema(description = "Plazo en meses", example = "HIPOTECARIO")
+    @Schema(description = "Plazo en meses", example = "24")
     private Integer loanTerm;
 
 }

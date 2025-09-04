@@ -33,10 +33,12 @@ public class ExceptionHelper {
     }
 
     public static Throwable unwrap(Throwable ex) {
-        if (ex == null) return null;
+        if (ex == null)
+            return null;
+
         Throwable unwrapped = reactor.core.Exceptions.unwrap(ex);
-        Throwable mostSpecific = org.springframework.core.NestedExceptionUtils.getMostSpecificCause(unwrapped);
-        return (mostSpecific != null ? mostSpecific : unwrapped);
+        return org.springframework.core.NestedExceptionUtils.getMostSpecificCause(unwrapped);
+
     }
 
 }
