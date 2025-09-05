@@ -44,8 +44,6 @@ public class RestConsumer  implements LoanApplicationRestClient{
                                 .map(error -> new UserNotExistsException(error.message()))
                 )
                 .bodyToMono(User.class);
-
-
     }
 }
 

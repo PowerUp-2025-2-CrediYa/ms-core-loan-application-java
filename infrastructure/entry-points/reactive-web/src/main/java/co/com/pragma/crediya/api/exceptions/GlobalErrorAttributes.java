@@ -53,5 +53,4 @@ public class GlobalErrorAttributes extends DefaultErrorAttributes {
         return status.is4xxClientError() ? DEFAULT_BAD_REQUEST_MESSAGE : DEFAULT_CLIENT_MESSAGE;
     }
 
-
 }

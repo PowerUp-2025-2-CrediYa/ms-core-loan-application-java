@@ -31,7 +31,7 @@ class RouterRestTest {
 
     @Test
     void shouldRoutePostRequestToLoanHandler() {
-        // Arrange
+
         LoanApplication loanApplication = LoanApplication.builder()
                 .documentId("123456789")
                 .loanType("PERSONAL")
@@ -42,12 +42,11 @@ class RouterRestTest {
         ServerResponse mockResponse = ServerResponse.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("Solicitud creada exitosamente")
-                .block(); // solo para test
+                .block();
 
         Mockito.when(loanHandler.listenPOSTUseCase(Mockito.any()))
                 .thenReturn(Mono.just(mockResponse));
 
-        // Act & Assert
         webTestClient.post()
                 .uri("/api/v1/solicitud")
                 .contentType(MediaType.APPLICATION_JSON)
