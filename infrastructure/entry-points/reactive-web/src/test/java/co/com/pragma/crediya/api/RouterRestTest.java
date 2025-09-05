@@ -1,60 +1,62 @@
 package co.com.pragma.crediya.api;
 
-import org.assertj.core.api.Assertions;
+import co.com.pragma.crediya.model.loanapplication.LoanApplication;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
 
-@ContextConfiguration(classes = {RouterRest.class, LoanHandler.class})
-@WebFluxTest
+import java.math.BigDecimal;
+
+@ExtendWith(MockitoExtension.class)
 class RouterRestTest {
 
-    @Autowired
     private WebTestClient webTestClient;
 
-    @Test
-    void testListenGETUseCase() {
-        webTestClient.get()
-                .uri("/api/usecase/path")
-                .accept(MediaType.APPLICATION_JSON)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(String.class)
-                .value(userResponse -> {
-                            Assertions.assertThat(userResponse).isEmpty();
-                        }
-                );
+    @Mock
+    private LoanHandler loanHandler;
+
+    @BeforeEach
+    void setUp() {
+        RouterFunction<ServerResponse> routerFunction = new RouterRest().routerFunction(loanHandler);
+        webTestClient = WebTestClient.bindToRouterFunction(routerFunction).build();
     }
 
     @Test
-    void testListenGETOtherUseCase() {
-        webTestClient.get()
-                .uri("/api/otherusercase/path")
-                .accept(MediaType.APPLICATION_JSON)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(String.class)
-                .value(userResponse -> {
-                            Assertions.assertThat(userResponse).isEmpty();
-                        }
-                );
-    }
+    void shouldRoutePostRequestToLoanHandler() {
+        // Arrange
+        LoanApplication loanApplication = LoanApplication.builder()
+                .documentId("123456789")
+                .loanType("PERSONAL")
+                .loanTerm(12)
+                .amount(BigDecimal.valueOf(5000000))
+                .build();
 
-    @Test
-    void testListenPOSTUseCase() {
+        ServerResponse mockResponse = ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("Solicitud creada exitosamente")
+                .block(); // solo para test
+
+        Mockito.when(loanHandler.listenPOSTUseCase(Mockito.any()))
+                .thenReturn(Mono.just(mockResponse));
+
+        // Act & Assert
         webTestClient.post()
-                .uri("/api/usecase/otherpath")
-                .accept(MediaType.APPLICATION_JSON)
-                .bodyValue("")
+                .uri("/api/v1/solicitud")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(loanApplication)
                 .exchange()
                 .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
                 .expectBody(String.class)
-                .value(userResponse -> {
-                            Assertions.assertThat(userResponse).isEmpty();
-                        }
-                );
+                .isEqualTo("Solicitud creada exitosamente");
     }
+
 }

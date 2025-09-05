@@ -26,3 +26,4 @@ include ':reactive-web'
 project(':reactive-web').projectDir = file('./infrastructure/entry-points/reactive-web')
 include ':rest-consumer'
 project(':rest-consumer').projectDir = file('./infrastructure/driven-adapters/rest-consumer')
+includeBuild('D:/LocalSolraceumx/Learning/Pragma/CrediYa/observability-toolkit/shared-observabilty-toolkit')

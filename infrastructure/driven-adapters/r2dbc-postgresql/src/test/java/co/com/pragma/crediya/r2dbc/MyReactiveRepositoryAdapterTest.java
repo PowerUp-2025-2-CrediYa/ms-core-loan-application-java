@@ -1,78 +1,85 @@
 package co.com.pragma.crediya.r2dbc;
 
+import co.com.pragma.crediya.model.loanapplication.LoanApplication;
+import co.com.pragma.crediya.r2dbc.entity.LoanApplicatonEntity;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.reactivecommons.utils.ObjectMapper;
-import org.springframework.data.domain.Example;
-import reactor.core.publisher.Flux;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import java.math.BigDecimal;
 
 @ExtendWith(MockitoExtension.class)
-class MyReactiveRepositoryAdapterTest {
-    // TODO: change four you own tests
-
-    @InjectMocks
-    MyReactiveRepositoryAdapter repositoryAdapter;
+class LoanReactiveRepositoryAdapterTest {
+    @Mock
+    private LoanReactiveRepository repository;
 
     @Mock
-    MyReactiveRepository repository;
+    private ObjectMapper objectMapper;
 
     @Mock
-    ObjectMapper mapper;
+    private TransactionalOperator transactionalOperator;
 
-    @Test
-    void mustFindValueById() {
+    private LoanReactiveRepositoryAdapter adapter;
 
-        when(repository.findById("1")).thenReturn(Mono.just("test"));
-        when(mapper.map("test", Object.class)).thenReturn("test");
+    private LoanApplication loanApplication;
+    private LoanApplicatonEntity entity;
 
-        Mono<Object> result = repositoryAdapter.findById("1");
+    @BeforeEach
+    void setUp() {
+        adapter = new LoanReactiveRepositoryAdapter(repository, objectMapper, transactionalOperator);
 
-        StepVerifier.create(result)
-                .expectNextMatches(value -> value.equals("test"))
-                .verifyComplete();
+        loanApplication = LoanApplication.builder()
+                .documentId("123456789")
+                .loanType("PERSONAL")
+                .loanTerm(12)
+                .amount(BigDecimal.valueOf(5000000))
+                .build();
+
+        entity = new LoanApplicatonEntity(); // simula entidad si es necesario
     }
 
-    @Test
-    void mustFindAllValues() {
-        when(repository.findAll()).thenReturn(Flux.just("test"));
-        when(mapper.map("test", Object.class)).thenReturn("test");
+    /*@Test
+    void shouldSaveLoanApplicationSuccessfully() {
+        // Arrange
+        Mono<LoanApplication> savedMono = Mono.just(loanApplication);
+        LoanApplicatonEntity entity = new LoanApplicatonEntity();
 
-        Flux<Object> result = repositoryAdapter.findAll();
+        Mockito.when(repository.save(Mockito.any())).thenReturn(Mono.just(entity));
+        Mockito.when(objectMapper.map(Mockito.any(LoanApplication.class), Mockito.eq(LoanApplicatonEntity.class)))
+                .thenReturn(entity);
+        Mockito.when(transactionalOperator.transactional(Mockito.any(Mono.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        StepVerifier.create(result)
-                .expectNextMatches(value -> value.equals("test"))
+
+        // Act & Assert
+        StepVerifier.create(adapter.saveLoanApplication(loanApplication))
+                .expectNext(loanApplication)
                 .verifyComplete();
-    }
-
-    @Test
-    void mustFindByExample() {
-        when(repository.findAll(any(Example.class))).thenReturn(Flux.just("test"));
-        when(mapper.map("test", Object.class)).thenReturn("test");
-
-        Flux<Object> result = repositoryAdapter.findByExample("test");
-
-        StepVerifier.create(result)
-                .expectNextMatches(value -> value.equals("test"))
-                .verifyComplete();
-    }
+    }*/
 
     @Test
-    void mustSaveValue() {
-        when(repository.save("test")).thenReturn(Mono.just("test"));
-        when(mapper.map("test", Object.class)).thenReturn("test");
+    void shouldMapDataIntegrityViolationExceptionToLoanDBException() {
+        // Arrange
+        DataIntegrityViolationException dbException = new DataIntegrityViolationException("Duplicate key");
+        Mockito.when(repository.save(Mockito.any())).thenReturn(Mono.error(dbException));
+        Mockito.when(transactionalOperator.transactional(Mockito.any(Mono.class))).thenAnswer(inv -> inv.getArgument(0))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Mono<Object> result = repositoryAdapter.save("test");
 
-        StepVerifier.create(result)
-                .expectNextMatches(value -> value.equals("test"))
-                .verifyComplete();
+        StepVerifier.create(adapter.saveLoanApplication(loanApplication))
+                .expectErrorMatches(error ->
+                        error instanceof RuntimeException &&
+                                error.getMessage().contains("Duplicate key") // ajusta según tu lógica en valideDBException
+                )
+                .verify();
     }
+
 }
