@@ -47,8 +47,8 @@ class GlobalErrorAttributesTest {
         MockServerHttpRequest httpRequest = MockServerHttpRequest.get(path).build();
         MockServerWebExchange exchange = MockServerWebExchange.from(httpRequest);
 
-        String ERROR_ATTRIBUTE = DefaultErrorAttributes.class.getName() + ".ERROR";
-        exchange.getAttributes().put(ERROR_ATTRIBUTE, ex);
+        String errorAttribute = DefaultErrorAttributes.class.getName() + ".ERROR";
+        exchange.getAttributes().put(errorAttribute, ex);
 
         return ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
     }
@@ -58,10 +58,10 @@ class GlobalErrorAttributesTest {
                                      String expectedPath,
                                      String expectedMessage) {
         assertThat(body).isNotNull();
-        assertThat(body.get("error")).isEqualTo(expectedStatus.getReasonPhrase());
-        assertThat(body.get("status")).isEqualTo(expectedStatus.value());
-        assertThat(body.get("path")).isEqualTo(expectedPath);
-        assertThat(body.get("message")).isEqualTo(expectedMessage);
+        assertThat(body).containsEntry("error", expectedStatus.getReasonPhrase());
+        assertThat(body).containsEntry("status", expectedStatus.value());
+        assertThat(body).containsEntry("path", expectedPath);
+        assertThat(body).containsEntry("message", expectedMessage);
 
         Object ts = body.get("timestamp");
         assertThat(ts).isInstanceOf(String.class);
@@ -127,7 +127,7 @@ class GlobalErrorAttributesTest {
         @Test
         @DisplayName("Cuando no hay mensaje y es 5xx, usa 'Ha ocurrido un error'")
         void noMessage_5xx_usesDefaultClientMessage() {
-            Throwable ex = new RuntimeException(); // sin mensaje
+            Throwable ex = new RuntimeException();
             ServerRequest request = requestWithError("/api/v1/usuarios", ex);
 
             exceptionHelperStatic.when(() -> ExceptionHelper.unwrap(any())).thenReturn(ex);

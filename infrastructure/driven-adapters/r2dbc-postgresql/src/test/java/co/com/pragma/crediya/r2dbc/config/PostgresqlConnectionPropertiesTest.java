@@ -110,7 +110,6 @@ class PostgresqlConnectionPropertiesTest {
                 "h2", 5433, "d2", "s2", "u2", "p2"
         );
 
-        assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
-        assertThat(a).isNotEqualTo(c);
+        assertThat(a).isEqualTo(b).hasSameHashCodeAs(b).isNotEqualTo(c);
     }
 }

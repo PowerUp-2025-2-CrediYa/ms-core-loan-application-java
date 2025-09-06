@@ -7,12 +7,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -38,88 +44,62 @@ class LoanDBExceptionTest {
         dataIntegrityViolationException = mock(DataIntegrityViolationException.class);
     }
 
-    @Test
-    @DisplayName("Debe mapear correctamente violación de clave foránea de tipo de préstamo")
-    void shouldMapForeignKeyViolationForLoanType() {
-        // Arrange
+    @ParameterizedTest(name = "[{index}] sqlState={0}, msg=''{1}'' → LoanTypeNotExistsException")
+    @CsvSource({
+            "23503, violates foreign key constraint fk_solicitudes_tipo_prestamo",
+            "00000, violates foreign key constraint fk_solicitudes_tipo_prestamo",
+            "00000, violates FOREIGN KEY constraint fk_solicitudes_tipo_prestamo"
+    })
+    @DisplayName("Mapea correctamente violación de clave foránea por sqlState y/o palabra clave en el mensaje")
+    void shouldMapForeignKeyViolation(String sqlState, String errorMessage) {
+
         R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("23503");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
+        when(r2dbcException.getSqlState()).thenReturn(sqlState);
+        when(r2dbcException.getMessage()).thenReturn(errorMessage);
 
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
+        DataIntegrityViolationException dive =
+                new DataIntegrityViolationException("constraint violation", r2dbcException);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
+        RuntimeException result = LoanDBException.valideDBException(dive, loanApplication);
+
+        assertThat(result)
+                .isInstanceOf(LoanTypeNotExistsException.class)
+                .hasMessage("No existe el tipo de prestamo: HIPOTECARIO");
     }
 
-    @Test
-    @DisplayName("Debe mapear correctamente violación de clave foránea por mensaje de error")
-    void shouldMapForeignKeyViolationByErrorMessage() {
-        // Arrange
+    @ParameterizedTest(name = "[{index}] sqlState={0} | message=''{1}'' → retorna la excepción original")
+    @MethodSource("nonForeignKeyScenarios")
+    @DisplayName("Debe retornar la excepción original cuando NO es violación de clave foránea")
+    void shouldReturnOriginalExceptionWhenNotForeignKeyViolation(String sqlState, String errorMessage) {
         R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("23503");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
+        when(r2dbcException.getSqlState()).thenReturn(sqlState);
+        when(r2dbcException.getMessage()).thenReturn(errorMessage);
 
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
+        DataIntegrityViolationException original =
+                new DataIntegrityViolationException("constraint violation", r2dbcException);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
+        RuntimeException result = LoanDBException.valideDBException(original, loanApplication);
+
+        assertThat(result).isSameAs(original);
     }
 
-    @Test
-    @DisplayName("Debe mapear correctamente violación de clave foránea por palabra clave en mensaje")
-    void shouldMapForeignKeyViolationByKeywordInMessage() {
-        // Arrange
-        R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("00000");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
-
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
-
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
-    }
-
-    @Test
-    @DisplayName("Debe retornar la excepción original cuando no es violación de clave foránea")
-    void shouldReturnOriginalExceptionWhenNotForeignKeyViolation() {
-        // Arrange
-        R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("23505"); // Unique constraint violation
-        when(r2dbcException.getMessage()).thenReturn("duplicate key value violates unique constraint");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
-
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(dataIntegrityViolationException, result);
+    static Stream<org.junit.jupiter.params.provider.Arguments> nonForeignKeyScenarios() {
+        return Stream.of(
+                org.junit.jupiter.params.provider.Arguments.of("23505", "duplicate key value violates unique constraint"),
+                org.junit.jupiter.params.provider.Arguments.of("22001", "value too long for type character varying(10)"),
+                org.junit.jupiter.params.provider.Arguments.of("23514", "new row for relation violates check constraint"),
+                org.junit.jupiter.params.provider.Arguments.of("23502", "null value in column \"name\" violates not-null constraint")
+        );
     }
 
     @Test
     @DisplayName("Debe retornar la excepción original cuando no hay R2dbcException")
     void shouldReturnOriginalExceptionWhenNoR2dbcException() {
-        // Arrange
         RuntimeException rootCause = new RuntimeException("Database connection failed");
         when(dataIntegrityViolationException.getCause()).thenReturn(rootCause);
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertEquals(dataIntegrityViolationException, result);
     }
@@ -127,106 +107,78 @@ class LoanDBExceptionTest {
     @Test
     @DisplayName("Debe manejar correctamente cuando R2dbcException no tiene mensaje")
     void shouldHandleCorrectlyWhenR2dbcExceptionHasNoMessage() {
-        // Arrange
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("23503");
         when(r2dbcException.getMessage()).thenReturn(null);
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
         when(dataIntegrityViolationException.getMessage()).thenReturn("Data integrity violation");
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertEquals(dataIntegrityViolationException, result);
     }
 
-    @Test
-    @DisplayName("Debe manejar correctamente cuando R2dbcException no tiene sqlState")
-    void shouldHandleCorrectlyWhenR2dbcExceptionHasNoSqlState() {
-        // Arrange
+    @ParameterizedTest(name = "[{index}] sqlState=''{0}'' (null/vacío/espacios) → LoanTypeNotExistsException")
+    @MethodSource("nullOrBlankSqlStates")
+    @DisplayName("Debe manejar correctamente cuando R2dbcException no tiene sqlState (null/blank)")
+    void shouldHandleCorrectlyWhenR2dbcExceptionHasNoSqlState(String sqlState) {
         R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn(null);
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
+        when(r2dbcException.getSqlState()).thenReturn(sqlState);
+        when(r2dbcException.getMessage())
+                .thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
 
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
+        DataIntegrityViolationException dive =
+                new DataIntegrityViolationException("constraint violation", r2dbcException);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
+        RuntimeException result = LoanDBException.valideDBException(dive, loanApplication);
+
+        assertThat(result)
+                .isInstanceOf(LoanTypeNotExistsException.class)
+                .hasMessage("No existe el tipo de prestamo: HIPOTECARIO");
     }
 
-    @Test
-    @DisplayName("Debe manejar correctamente cuando el mensaje contiene 'foreign key'")
-    void shouldHandleCorrectlyWhenMessageContainsForeignKey() {
-        // Arrange
-        R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("00000");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
-
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
-
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
+    static Stream<String> nullOrBlankSqlStates() {
+        return Stream.of(null, "", "   ");
     }
 
-    @Test
-    @DisplayName("Debe manejar correctamente cuando el mensaje contiene 'violates foreign key constraint'")
-    void shouldHandleCorrectlyWhenMessageContainsViolatesForeignKeyConstraint() {
-        // Arrange
+    @ParameterizedTest(name = "[{index}] constraint=''{0}'' → devuelve la excepción original")
+    @MethodSource("unknownForeignKeyConstraints")
+    @DisplayName("Retorna la excepción original cuando no hay mapeo específico para la FK")
+    void shouldReturnOriginalExceptionWhenNoSpecificMappingForForeignKeyViolation(String unknownConstraintName) {
         R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("00000");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
+        when(r2dbcException.getSqlState()).thenReturn("23503"); // FK violation
+        when(r2dbcException.getMessage())
+                .thenReturn("violates foreign key constraint " + unknownConstraintName);
 
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
+        DataIntegrityViolationException original =
+                new DataIntegrityViolationException("constraint violation", r2dbcException);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
+        RuntimeException result = LoanDBException.valideDBException(original, loanApplication);
+
+        assertThat(result).isSameAs(original);
     }
 
-    @Test
-    @DisplayName("Debe retornar null cuando no hay mapeo específico para la violación de clave foránea")
-    void shouldReturnNullWhenNoSpecificMappingForForeignKeyViolation() {
-        // Arrange
-        R2dbcException r2dbcException = mock(R2dbcException.class);
-        when(r2dbcException.getSqlState()).thenReturn("23503");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_other_table");
-        when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
-
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(dataIntegrityViolationException, result);
+    static Stream<String> unknownForeignKeyConstraints() {
+        return Stream.of(
+                "fk_other_table",
+                "fk_users_roles",
+                "fk_payments_orders",
+                "fk_inventario_producto"
+        );
     }
 
     @Test
     @DisplayName("Debe manejar correctamente cuando el mensaje es null")
     void shouldHandleCorrectlyWhenMessageIsNull() {
-        // Arrange
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("23503");
         when(r2dbcException.getMessage()).thenReturn(null);
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
         when(dataIntegrityViolationException.getMessage()).thenReturn(null);
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertEquals(dataIntegrityViolationException, result);
     }
@@ -234,16 +186,13 @@ class LoanDBExceptionTest {
     @Test
     @DisplayName("Debe manejar correctamente cuando el mensaje está vacío")
     void shouldHandleCorrectlyWhenMessageIsEmpty() {
-        // Arrange
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("23503");
         when(r2dbcException.getMessage()).thenReturn("");
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertEquals(dataIntegrityViolationException, result);
     }
@@ -251,16 +200,13 @@ class LoanDBExceptionTest {
     @Test
     @DisplayName("Debe manejar correctamente cuando el mensaje contiene solo espacios en blanco")
     void shouldHandleCorrectlyWhenMessageContainsOnlyWhitespace() {
-        // Arrange
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("23503");
         when(r2dbcException.getMessage()).thenReturn("   ");
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertEquals(dataIntegrityViolationException, result);
     }
@@ -268,52 +214,50 @@ class LoanDBExceptionTest {
     @Test
     @DisplayName("Debe manejar correctamente cuando el mensaje contiene 'FOREIGN KEY' en mayúsculas")
     void shouldHandleCorrectlyWhenMessageContainsForeignKeyInUppercase() {
-        // Arrange
+
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("00000");
         when(r2dbcException.getMessage()).thenReturn("VIOLATES FOREIGN KEY CONSTRAINT fk_solicitudes_tipo_prestamo");
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertTrue(result instanceof LoanTypeNotExistsException);
         assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
     }
 
-    @Test
-    @DisplayName("Debe manejar correctamente cuando el mensaje contiene 'foreign key' en minúsculas")
-    void shouldHandleCorrectlyWhenMessageContainsForeignKeyInLowercase() {
-        // Arrange
+    @ParameterizedTest(name = "[{index}] msg=''{0}'' → LoanTypeNotExistsException")
+    @ValueSource(strings = {
+            "violates FOREIGN KEY constraint",
+            "violates foreign key constraint"
+    })
+    @DisplayName("Debe mapear correctamente por palabra clave en el mensaje")
+    void shouldMapForeignKeyViolationByKeywordInMessage(String msgPrefix) {
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("00000");
-        when(r2dbcException.getMessage()).thenReturn("violates foreign key constraint fk_solicitudes_tipo_prestamo");
+        when(r2dbcException.getMessage()).thenReturn(msgPrefix + " fk_solicitudes_tipo_prestamo");
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
 
-        // Act
-        RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
+        RuntimeException result = LoanDBException.valideDBException(
+                dataIntegrityViolationException, loanApplication
+        );
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof LoanTypeNotExistsException);
-        assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());
+        assertThat(result)
+                .isInstanceOf(LoanTypeNotExistsException.class)
+                .hasMessage("No existe el tipo de prestamo: HIPOTECARIO");
     }
 
     @Test
     @DisplayName("Debe manejar correctamente cuando el mensaje contiene 'Foreign Key' con capitalización mixta")
     void shouldHandleCorrectlyWhenMessageContainsForeignKeyInMixedCase() {
-        // Arrange
         R2dbcException r2dbcException = mock(R2dbcException.class);
         when(r2dbcException.getSqlState()).thenReturn("00000");
         when(r2dbcException.getMessage()).thenReturn("Violates Foreign Key Constraint fk_solicitudes_tipo_prestamo");
         when(dataIntegrityViolationException.getCause()).thenReturn(r2dbcException);
 
-        // Act
         RuntimeException result = LoanDBException.valideDBException(dataIntegrityViolationException, loanApplication);
 
-        // Assert
         assertNotNull(result);
         assertTrue(result instanceof LoanTypeNotExistsException);
         assertEquals("No existe el tipo de prestamo: HIPOTECARIO", ((LoanTypeNotExistsException) result).getMessage());

@@ -17,7 +17,6 @@ class LoanResponseMapperTest{
     @Test
     @DisplayName("should map LoanApplication to LoanApplicationResponse correctly")
     void shouldMapLoanApplicationToResponse() {
-        // Arrange
         LoanApplication loanApplication = LoanApplication.builder()
                 .loanApplicationId(UUID.fromString("9c6f12cf-4c2e-45be-b8de-6cf4721b56cc"))
                 .documentId("DOC-456")
@@ -27,10 +26,8 @@ class LoanResponseMapperTest{
                 .loanStatus("APPROVED")
                 .build();
 
-        // Act
         LoanApplicationResponse response = LoanResponseMapper.fromDomain(loanApplication);
 
-        // Assert
         assertAll("Mapped fields",
                 () -> assertEquals(UUID.fromString("9c6f12cf-4c2e-45be-b8de-6cf4721b56cc"), response.getLoanApplicationId()),
                 () -> assertEquals("DOC-456", response.getDocumentId()),

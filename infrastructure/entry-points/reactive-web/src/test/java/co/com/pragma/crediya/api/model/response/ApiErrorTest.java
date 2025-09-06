@@ -37,8 +37,10 @@ class ApiErrorTest {
         ApiError b = new ApiError("Conflict", "m1", "/p", 409, "t1");
         ApiError c = new ApiError("Bad Request", "m2", "/q", 400, "t2");
 
-        assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
-        assertThat(a).isNotEqualTo(c);
+        assertThat(a)
+                .isEqualTo(b)
+                .hasSameHashCodeAs(b)
+                .isNotEqualTo(c);
     }
 
     @Test

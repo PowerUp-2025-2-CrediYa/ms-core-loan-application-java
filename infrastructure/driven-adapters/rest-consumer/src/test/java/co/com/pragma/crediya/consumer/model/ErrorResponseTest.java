@@ -37,8 +37,7 @@ class ErrorResponseTest {
         ErrorResponse b = new ErrorResponse("Conflict", "m1", "/p", 409, "t1");
         ErrorResponse c = new ErrorResponse("Bad Request", "m2", "/q", 400, "t2");
 
-        assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
-        assertThat(a).isNotEqualTo(c);
+        assertThat(a).isEqualTo(b).hasSameHashCodeAs(b).isNotEqualTo(c);
     }
 
     @Test

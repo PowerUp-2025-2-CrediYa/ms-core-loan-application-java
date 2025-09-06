@@ -46,28 +46,8 @@ class LoanReactiveRepositoryAdapterTest {
         entity = new LoanApplicatonEntity(); // simula entidad si es necesario
     }
 
-    /*@Test
-    void shouldSaveLoanApplicationSuccessfully() {
-        // Arrange
-        Mono<LoanApplication> savedMono = Mono.just(loanApplication);
-        LoanApplicatonEntity entity = new LoanApplicatonEntity();
-
-        Mockito.when(repository.save(Mockito.any())).thenReturn(Mono.just(entity));
-        Mockito.when(objectMapper.map(Mockito.any(LoanApplication.class), Mockito.eq(LoanApplicatonEntity.class)))
-                .thenReturn(entity);
-        Mockito.when(transactionalOperator.transactional(Mockito.any(Mono.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-
-        // Act & Assert
-        StepVerifier.create(adapter.saveLoanApplication(loanApplication))
-                .expectNext(loanApplication)
-                .verifyComplete();
-    }*/
-
     @Test
     void shouldMapDataIntegrityViolationExceptionToLoanDBException() {
-        // Arrange
         DataIntegrityViolationException dbException = new DataIntegrityViolationException("Duplicate key");
         Mockito.when(repository.save(Mockito.any())).thenReturn(Mono.error(dbException));
         Mockito.when(transactionalOperator.transactional(Mockito.any(Mono.class))).thenAnswer(inv -> inv.getArgument(0))

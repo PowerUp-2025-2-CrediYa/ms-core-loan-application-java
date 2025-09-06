@@ -52,7 +52,6 @@ class LoanApplicationUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        // Arrange - Configuración común para todos los tests
         validLoanApplication = LoanApplication.builder()
                 .loanApplicationId(UUID.randomUUID())
                 .documentId("12345678")
@@ -77,7 +76,6 @@ class LoanApplicationUseCaseTest {
     @Test
     @DisplayName("Debería guardar una solicitud de préstamo exitosamente cuando el usuario existe y la validación es exitosa")
     void shouldSaveLoanApplicationSuccessfullyWhenUserExistsAndValidationPasses() {
-        // Arrange
         LoanApplication expectedSavedLoan = validLoanApplication.toBuilder()
                 .loanStatus(LoanStatusCode.PENDING_REVIEW)
                 .build();
@@ -87,12 +85,10 @@ class LoanApplicationUseCaseTest {
         when(loanApplicationRepositoryGateway.saveLoanApplication(any(LoanApplication.class)))
                 .thenReturn(Mono.just(expectedSavedLoan));
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectNext(expectedSavedLoan)
                 .verifyComplete();
 
-        // Verify interactions
         verify(loanRestClientGateway).findUserByDocumentId(validLoanApplication.getDocumentId());
         verify(loanApplicationRepositoryGateway).saveLoanApplication(any(LoanApplication.class));
     }
@@ -100,7 +96,6 @@ class LoanApplicationUseCaseTest {
     @Test
     @DisplayName("Debería establecer el estado como PENDING_REVIEW antes de guardar")
     void shouldSetLoanStatusAsPendingReviewBeforeSaving() {
-        // Arrange
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.just(validUser));
         when(loanApplicationRepositoryGateway.saveLoanApplication(any(LoanApplication.class)))
@@ -110,36 +105,30 @@ class LoanApplicationUseCaseTest {
                     return Mono.just(loanToSave);
                 });
 
-        // Act
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectNextCount(1)
                 .verifyComplete();
 
-        // Assert - Verificación implícita en el thenAnswer
         verify(loanApplicationRepositoryGateway).saveLoanApplication(any(LoanApplication.class));
     }
 
     @Test
     @DisplayName("Debería propagar error cuando el usuario no existe")
     void shouldPropagateErrorWhenUserDoesNotExist() {
-        // Arrange
         String errorMessage = "Usuario no encontrado";
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.error(new RuntimeException(errorMessage)));
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectError(RuntimeException.class)
                 .verify();
 
-        // Verify that repository is not called when user doesn't exist
         verify(loanApplicationRepositoryGateway, never()).saveLoanApplication(any(LoanApplication.class));
     }
 
     @Test
     @DisplayName("Debería propagar error cuando la validación falla")
     void shouldPropagateErrorWhenValidationFails() {
-        // Arrange
         LoanApplication invalidLoan = validLoanApplication.toBuilder()
                 .documentId("") // Documento vacío para fallar validación
                 .build();
@@ -147,31 +136,26 @@ class LoanApplicationUseCaseTest {
         when(loanRestClientGateway.findUserByDocumentId(invalidLoan.getDocumentId()))
                 .thenReturn(Mono.just(validUser));
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(invalidLoan))
                 .expectError()
                 .verify();
 
-        // Verify that repository is not called when validation fails
         verify(loanApplicationRepositoryGateway, never()).saveLoanApplication(any(LoanApplication.class));
     }
 
     @Test
     @DisplayName("Debería propagar error cuando el repositorio falla al guardar")
     void shouldPropagateErrorWhenRepositoryFailsToSave() {
-        // Arrange
         String errorMessage = "Error al guardar en base de datos";
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.just(validUser));
         when(loanApplicationRepositoryGateway.saveLoanApplication(any(LoanApplication.class)))
                 .thenReturn(Mono.error(new RuntimeException(errorMessage)));
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectError(RuntimeException.class)
                 .verify();
 
-        // Verify interactions
         verify(loanRestClientGateway).findUserByDocumentId(validLoanApplication.getDocumentId());
         verify(loanApplicationRepositoryGateway).saveLoanApplication(any(LoanApplication.class));
     }
@@ -179,19 +163,16 @@ class LoanApplicationUseCaseTest {
     @Test
     @DisplayName("Debería llamar al validador con la solicitud de préstamo correcta")
     void shouldCallValidatorWithCorrectLoanApplication() {
-        // Arrange
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.just(validUser));
         when(loanApplicationRepositoryGateway.saveLoanApplication(any(LoanApplication.class)))
                 .thenReturn(Mono.just(validLoanApplication));
 
-        // Act & Assert
         try (MockedStatic<LoanApplicationValidator> mockedValidator = mockStatic(LoanApplicationValidator.class)) {
             StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                     .expectNext(validLoanApplication)
                     .verifyComplete();
 
-            // Verify that validator was called with the correct loan application
             mockedValidator.verify(() -> LoanApplicationValidator.validate(validLoanApplication));
         }
     }
@@ -199,23 +180,19 @@ class LoanApplicationUseCaseTest {
     @Test
     @DisplayName("Debería manejar correctamente el flujo reactivo cuando el cliente REST retorna un Mono vacío")
     void shouldHandleReactiveFlowWhenRestClientReturnsEmptyMono() {
-        // Arrange
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.empty());
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectComplete()
                 .verify();
 
-        // Verify that repository is not called when user is not found
         verify(loanApplicationRepositoryGateway, never()).saveLoanApplication(any(LoanApplication.class));
     }
 
     @Test
     @DisplayName("Debería preservar el ID de la solicitud de préstamo durante el proceso")
     void shouldPreserveLoanApplicationIdDuringProcess() {
-        // Arrange
         UUID originalId = validLoanApplication.getLoanApplicationId();
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.just(validUser));
@@ -226,19 +203,16 @@ class LoanApplicationUseCaseTest {
                     return Mono.just(loanToSave);
                 });
 
-        // Act
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectNextCount(1)
                 .verifyComplete();
 
-        // Assert - Verificación implícita en el thenAnswer
         verify(loanApplicationRepositoryGateway).saveLoanApplication(any(LoanApplication.class));
     }
 
     @Test
     @DisplayName("Debería manejar correctamente el caso cuando el documento ID es null")
     void shouldHandleNullDocumentId() {
-        // Arrange
         LoanApplication loanWithNullDocument = validLoanApplication.toBuilder()
                 .documentId(null)
                 .build();
@@ -246,25 +220,21 @@ class LoanApplicationUseCaseTest {
         when(loanRestClientGateway.findUserByDocumentId(null))
                 .thenReturn(Mono.just(validUser));
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(loanWithNullDocument))
                 .expectError()
                 .verify();
 
-        // Verify that repository is not called when validation fails
         verify(loanApplicationRepositoryGateway, never()).saveLoanApplication(any(LoanApplication.class));
     }
 
     @Test
     @DisplayName("Debería completar el flujo reactivo correctamente sin errores")
     void shouldCompleteReactiveFlowSuccessfully() {
-        // Arrange
         when(loanRestClientGateway.findUserByDocumentId(validLoanApplication.getDocumentId()))
                 .thenReturn(Mono.just(validUser));
         when(loanApplicationRepositoryGateway.saveLoanApplication(any(LoanApplication.class)))
                 .thenReturn(Mono.just(validLoanApplication));
 
-        // Act & Assert
         StepVerifier.create(loanApplicationUseCase.saveUser(validLoanApplication))
                 .expectNextMatches(loan -> 
                     loan.getLoanStatus().equals(LoanStatusCode.PENDING_REVIEW) &&

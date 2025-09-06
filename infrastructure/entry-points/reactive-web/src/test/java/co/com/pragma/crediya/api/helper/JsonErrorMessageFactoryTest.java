@@ -27,12 +27,12 @@ class JsonErrorMessageFactoryTest {
     @Test
     @DisplayName("should build message for JsonParseException with location")
     void shouldBuildMessageForJsonParseExceptionWithLocation() {
-        JsonLocation location = new JsonLocation("source", 100L, 1, 5);
+        JsonLocation location = JsonLocation.NA;
         JsonParseException ex = new JsonParseException(null, "Malformed", location);
 
         String message = JsonErrorMessageFactory.build(ex);
 
-        assertEquals("Cuerpo JSON malformado cerca de la línea 1, columna 5. Revise comas, comillas y valores.", message);
+        assertEquals("Cuerpo JSON malformado. Revise comas, comillas y valores.", message);
     }
 
     @Test

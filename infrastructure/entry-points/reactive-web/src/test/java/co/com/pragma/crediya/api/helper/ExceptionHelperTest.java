@@ -28,7 +28,6 @@ class ExceptionHelperTest {
     @Test
     @DisplayName("Debe retornar BAD_REQUEST para errores de JSON o InvalidLoanException")
     void shouldReturnBadRequestForJsonDecodeErrorOrInvalidLoanException() {
-        Throwable jsonError = new RuntimeException("Json decode error");
 
         assertEquals(HttpStatus.BAD_REQUEST, ExceptionHelper.resolveStatus(new InvalidLoanException("Datos inválidos")));
     }
